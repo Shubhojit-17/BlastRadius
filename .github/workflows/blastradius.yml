@@ -1,0 +1,44 @@
+name: BlastRadius PR Impact Analysis
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - '**.sql'
+      - '**.yml'
+      - '**.yaml'
+      - 'models/**'
+
+jobs:
+  blast-radius:
+    runs-on: ubuntu-latest
+    name: Downstream Lineage & Contract Evaluation
+    steps:
+      - name: Checkout PR Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Get PR Git Diff
+        id: git-diff
+        run: |
+          git diff origin/${{ github.base_ref }}...HEAD > pr_diff.patch
+
+      - name: Run BlastRadius Agent
+        env:
+          DATAHUB_GMS_URL: ${{ secrets.DATAHUB_GMS_URL }}
+          DATAHUB_PAT_TOKEN: ${{ secrets.DATAHUB_PAT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          python -m blastradius.orchestrator --diff pr_diff.patch --pr-number $PR_NUMBER

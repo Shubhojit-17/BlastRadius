@@ -1,0 +1,15 @@
+diff --git a/models/analytics/fct_user_orders.sql b/models/analytics/fct_user_orders.sql
+index 8a3f1b2..9c4d2e1 100644
+--- a/models/analytics/fct_user_orders.sql
++++ b/models/analytics/fct_user_orders.sql
+@@ -1,9 +1,8 @@
+ -- dbt model: fct_user_orders
+ SELECT
+     u.user_id,
+     u.email AS user_email,
+     COUNT(o.order_id) AS total_orders,
+-    SUM(o.order_amount) AS lifetime_value,
+     MIN(o.created_at) AS first_order_at
+ FROM {{ ref('raw_users') }} u
+ JOIN {{ ref('raw_orders') }} o ON u.user_id = o.user_id
+ GROUP BY 1, 2

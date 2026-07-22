@@ -1,0 +1,33 @@
+{
+  "pr_number": 42,
+  "commit_sha": "a1b2c3d4e5f678901234567890abcdef12345678",
+  "risk_level": "HIGH",
+  "risk_score": 78.5,
+  "changed_entities": [
+    {
+      "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,analytics.fct_orders,PROD)",
+      "dataset_name": "analytics.fct_orders",
+      "change_type": "COLUMN_DROP",
+      "affected_columns": ["customer_lifetime_value"],
+      "raw_diff": "- customer_lifetime_value FLOAT"
+    }
+  ],
+  "downstream_impacts": [
+    {
+      "urn": "urn:li:dashboard:(looker,dashboards.exec_kpis)",
+      "name": "Executive KPI Dashboard",
+      "entity_type": "dashboard",
+      "depth": 2,
+      "owners": ["finance-bi@company.com"]
+    }
+  ],
+  "contract_violations": [
+    {
+      "assertion_urn": "urn:li:assertion:schema_contract_fct_orders",
+      "entity_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,analytics.fct_orders,PROD)",
+      "assertion_type": "schema",
+      "status": "FAILED",
+      "description": "Field 'customer_lifetime_value' is required by downstream schema contract."
+    }
+  ]
+}
