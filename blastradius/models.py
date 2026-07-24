@@ -118,14 +118,18 @@ class AssertionResult:
         assertion_urn: Canonical URN of assertion in DataHub.
         entity_urn: Target dataset URN attached to assertion.
         assertion_type: Category of assertion (e.g., 'freshness', 'schema', 'custom').
-        status: Evaluation verdict ('PASSED', 'FAILED', 'POTENTIALLY_BROKEN').
+        status: Evaluation verdict ('PASSED', 'FAILED', 'VIOLATED', 'UNAFFECTED', 'AT_RISK').
         description: Human-readable rationale or failure description.
+        protected_fields: List of column names protected by this assertion.
+        violating_column: Name of specific column in PR diff violating contract if applicable.
     """
     assertion_urn: str
     entity_urn: str
     assertion_type: str
     status: str
     description: str
+    protected_fields: List[str] = field(default_factory=list)
+    violating_column: Optional[str] = None
 
 
 @dataclass

@@ -253,7 +253,10 @@ class DataHubRestGraphClient(DataHubClient):
         return downstream_assets
 
     def fetch_entity_assertions(self, entity_urn: str) -> List[AssertionResult]:
-        """Fetches active assertions and contracts attached to entity URN using GraphQL."""
+        """Fetches active assertions and contracts attached to entity URN, populating protected_fields."""
+        import re
+        from datahub.metadata.schema_classes import AssertionInfoClass
+
         query = """
         query getDatasetAssertions($urn: String!) {
           dataset(urn: $urn) {
@@ -264,9 +267,6 @@ class DataHubRestGraphClient(DataHubClient):
                 type
                 info {
                   description
-                  datasetAssertion {
-                    scope
-                  }
                 }
               }
             }
@@ -281,7 +281,46 @@ class DataHubRestGraphClient(DataHubClient):
                 assertion_urn = item.get("urn", "")
                 assertion_type = item.get("type", "DATASET")
                 info = item.get("info") or {}
-                description = info.get("description") or f"Schema Assertion on {entity_urn}"
+                description = info.get("description") or f"Contract Assertion on {entity_urn}"
+
+                protected_fields: List[str] = []
+                try:
+                    aspect = self.graph.get_aspect(assertion_urn, AssertionInfoClass)
+                    if aspect:
+                        # 1. Dataset Column / Field Assertions (datasetAssertion)
+                        if hasattr(aspect, "datasetAssertion") and aspect.datasetAssertion:
+                            ds_info = aspect.datasetAssertion
+                            if hasattr(ds_info, "fields") and ds_info.fields:
+                                for field_urn in ds_info.fields:
+                                    m = re.search(r',([^,\(\)]+)\)$', field_urn)
+                                    if m:
+                                        protected_fields.append(m.group(1))
+                                    else:
+                                        protected_fields.append(field_urn.split(":")[-1])
+
+                        # 2. Schema Assertions (schemaAssertion)
+                        elif hasattr(aspect, "schemaAssertion") and aspect.schemaAssertion:
+                            sch_info = aspect.schemaAssertion
+                            if hasattr(sch_info, "fields") and sch_info.fields:
+                                for f in sch_info.fields:
+                                    if hasattr(f, "fieldPath"):
+                                        protected_fields.append(f.fieldPath)
+                                    elif isinstance(f, str):
+                                        protected_fields.append(f)
+
+                        # 3. Field Assertions (fieldAssertion)
+                        elif hasattr(aspect, "fieldAssertion") and aspect.fieldAssertion:
+                            f_info = aspect.fieldAssertion
+                            if hasattr(f_info, "field"):
+                                f_val = f_info.field
+                                m = re.search(r',([^,\(\)]+)\)$', f_val)
+                                if m:
+                                    protected_fields.append(m.group(1))
+                                else:
+                                    protected_fields.append(f_val)
+                except Exception as ex:
+                    logger.warning(f"Failed to inspect aspect for assertion {assertion_urn}: {ex}")
+
                 assertions_list.append(
                     AssertionResult(
                         assertion_urn=assertion_urn,
@@ -289,6 +328,7 @@ class DataHubRestGraphClient(DataHubClient):
                         assertion_type=assertion_type,
                         status="PASSED",
                         description=description,
+                        protected_fields=protected_fields,
                     )
                 )
         except Exception as e:
