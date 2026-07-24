@@ -25,6 +25,7 @@ class Config:
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
     environment: str = os.getenv("ENVIRONMENT", "PROD")
     max_lineage_depth: int = int(os.getenv("MAX_LINEAGE_DEPTH", "5"))
+    gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
 
     def validate(self) -> None:
         """
