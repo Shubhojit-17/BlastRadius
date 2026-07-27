@@ -53,22 +53,31 @@ def format_sentinel_warning(report: AssessmentReport) -> str:
     return warning
 
 
+HEADER_MARKER = "### ⚠️ BlastRadius Schema Impact Warning"
+
+
 def apply_read_modify_write_description(original_desc: str, warning_block: str) -> str:
     """
     Appends or updates sentinel warning block using re.DOTALL, preserving original description.
     """
-    pattern = rf"\n\n{re.escape(SENTINEL_START)}.*?{re.escape(SENTINEL_END)}"
     clean_original = original_desc.strip()
 
-    if re.search(pattern, clean_original, flags=re.DOTALL):
-        # Update existing sentinel block in place
-        return re.sub(pattern, f"\n\n{warning_block}", clean_original, flags=re.DOTALL)
+    # Pattern 1: HTML comments sentinel block
+    pattern_html = rf"\n\n{re.escape(SENTINEL_START)}.*?{re.escape(SENTINEL_END)}"
+    # Pattern 2: Header marker fallback (if HTML comments are stripped by sanitizer)
+    pattern_header = rf"\n\n{re.escape(HEADER_MARKER)}.*"
+
+    if re.search(pattern_html, clean_original, flags=re.DOTALL):
+        return re.sub(pattern_html, f"\n\n{warning_block}", clean_original, flags=re.DOTALL)
+    elif re.search(pattern_header, clean_original, flags=re.DOTALL):
+        return re.sub(pattern_header, f"\n\n{warning_block}", clean_original, flags=re.DOTALL)
     elif SENTINEL_START in clean_original:
-        # Alt pattern fallback
         pattern_alt = rf"{re.escape(SENTINEL_START)}.*?{re.escape(SENTINEL_END)}"
         return re.sub(pattern_alt, warning_block, clean_original, flags=re.DOTALL)
+    elif HEADER_MARKER in clean_original:
+        pattern_hdr_alt = rf"{re.escape(HEADER_MARKER)}.*"
+        return re.sub(pattern_hdr_alt, warning_block, clean_original, flags=re.DOTALL)
     else:
-        # Append new sentinel block
         if clean_original:
             return f"{clean_original}\n\n{warning_block}"
         return warning_block
@@ -78,14 +87,40 @@ def strip_sentinel_warning(desc_with_warning: str) -> str:
     """
     Strips sentinel warning block and trailing whitespace, restoring exact original description.
     """
-    pattern = rf"\n\n{re.escape(SENTINEL_START)}.*?{re.escape(SENTINEL_END)}"
-    stripped = re.sub(pattern, "", desc_with_warning, flags=re.DOTALL)
+    pattern_html = rf"\n\n{re.escape(SENTINEL_START)}.*?{re.escape(SENTINEL_END)}"
+    pattern_header = rf"\n\n{re.escape(HEADER_MARKER)}.*"
+
+    stripped = re.sub(pattern_html, "", desc_with_warning, flags=re.DOTALL)
+    stripped = re.sub(pattern_header, "", stripped, flags=re.DOTALL)
 
     if SENTINEL_START in stripped:
         pattern_alt = rf"{re.escape(SENTINEL_START)}.*?{re.escape(SENTINEL_END)}"
         stripped = re.sub(pattern_alt, "", stripped, flags=re.DOTALL)
 
+    if HEADER_MARKER in stripped:
+        pattern_hdr_alt = rf"{re.escape(HEADER_MARKER)}.*"
+        stripped = re.sub(pattern_hdr_alt, "", stripped, flags=re.DOTALL)
+
     return stripped.strip()
+
+
+def ensure_tag_exists(client: Optional[DataHubClient], tag_name: str = TAG_NAME) -> None:
+    """Ensures the tag entity exists in DataHub GMS before calling add_tags."""
+    if client and hasattr(client, "graph"):
+        try:
+            from datahub.emitter.mcp import MetadataChangeProposalWrapper
+            from datahub.metadata.schema_classes import TagPropertiesClass, ChangeTypeClass
+            tag_urn = f"urn:li:tag:{tag_name}"
+            tag_mcp = MetadataChangeProposalWrapper(
+                entityType="tag",
+                entityUrn=tag_urn,
+                changeType=ChangeTypeClass.UPSERT,
+                aspectName="tagProperties",
+                aspect=TagPropertiesClass(name=tag_name, description="Pending schema change warning added by BlastRadius")
+            )
+            client.graph.emit(tag_mcp)
+        except Exception as e:
+            logger.warning(f"Could not auto-create tag entity in GMS: {e}")
 
 
 def execute_writeback(
@@ -109,6 +144,8 @@ def execute_writeback(
     if not report.changed_entities:
         logger.info("[WRITEBACK] No changed entities to write back.")
         return {"status": "SKIPPED", "mutations": []}
+
+    ensure_tag_exists(client, TAG_NAME)
 
     target_entity = report.changed_entities[0]
     target_urn = target_entity.urn
@@ -137,11 +174,11 @@ def execute_writeback(
         "tool": "add_structured_properties",
         "target_urn": target_urn,
         "args": {
-            "entity_urn": target_urn,
-            "properties": {
-                "blastradius_risk_level": report.risk_level.value,
-                "blastradius_pr": f"#{report.pr_number}"
-            }
+            "entity_urns": [target_urn],
+            "property_values": [
+                {"property_urn": "urn:li:structuredProperty:blastradius_risk_level", "values": [report.risk_level.value]},
+                {"property_urn": "urn:li:structuredProperty:blastradius_pr", "values": [f"#{report.pr_number}"]}
+            ]
         }
     })
 

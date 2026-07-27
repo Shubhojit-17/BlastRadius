@@ -92,16 +92,16 @@ class MCPAgent:
                 adapted_args["downstream_urn"] = value
             elif key == "source_urn" and "upstream_urn" in properties:
                 adapted_args["upstream_urn"] = value
-            elif key == "urns" and "entity_urns" in properties:
+            elif key in ["entity_urn", "urn"] and "entity_urns" in properties:
                 adapted_args["entity_urns"] = value if isinstance(value, list) else [value]
-            elif key == "urns" and "urn" in properties:
-                adapted_args["urn"] = value[0] if isinstance(value, list) and value else value
-            elif key == "urn" and "entity_urn" in properties:
-                adapted_args["entity_urn"] = value
-            elif key == "dataset_urn" and "urn" in properties:
-                adapted_args["urn"] = value
-            elif key == "dataset_urn" and "entity_urn" in properties:
-                adapted_args["entity_urn"] = value
+            elif key in ["tag_name", "tag_urn", "tag_urns"] and "tag_urns" in properties:
+                if isinstance(value, list):
+                    adapted_args["tag_urns"] = [v if v.startswith("urn:li:tag:") else f"urn:li:tag:{v}" for v in value]
+                elif isinstance(value, str):
+                    t_urn = value if value.startswith("urn:li:tag:") else f"urn:li:tag:{value}"
+                    adapted_args["tag_urns"] = [t_urn]
+            elif key == "properties" and "property_values" in properties:
+                adapted_args["property_values"] = value
             else:
                 adapted_args[key] = value
 
@@ -131,15 +131,16 @@ class MCPAgent:
                     urn = item.get("urn", "")
                     name = item.get("name") or (urn.split(":")[-1] if ":" in urn else urn)
                     props = item.get("properties") or {}
-                    desc = props.get("description")
+                    editable = item.get("editableProperties") or {}
+                    desc = editable.get("description") or props.get("description")
                     if desc:
                         descriptions[name] = desc
                         descriptions[urn] = desc
 
                     t_list = []
-                    tags_obj = item.get("tags") or {}
+                    tags_obj = item.get("tags") or item.get("globalTags") or {}
                     for t in tags_obj.get("tags", []):
-                        t_name = t.get("tag", {}).get("name")
+                        t_name = t.get("tag", {}).get("name") or t.get("tag", {}).get("urn", "")
                         if t_name:
                             t_list.append(t_name)
                     if t_list:

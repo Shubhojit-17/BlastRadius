@@ -320,7 +320,20 @@ def emit_metadata(emitter: DataHubRestEmitter) -> None:
     )
 
     # Emit all MCPs to DataHub
-    logger.info(f"Emitting {len(mcps)} metadata change proposals to DataHub GMS at {GMS_ENDPOINT}...")
+    # 6. Emit Tag Entity for BlastRadius Warning Tag
+    tag_mcp = MetadataChangeProposalWrapper(
+        entityType="tag",
+        entityUrn="urn:li:tag:blastradius_pending_change",
+        changeType=ChangeTypeClass.UPSERT,
+        aspectName="tagProperties",
+        aspect=TagPropertiesClass(
+            name="blastradius_pending_change",
+            description="Pending schema change warning added by BlastRadius agent"
+        ),
+    )
+    mcps.append(tag_mcp)
+
+    print(f"Emitting {len(mcps)} metadata change proposals to DataHub GMS at {config.datahub_gms_url}...")
     for mcp in mcps:
         emitter.emit(mcp)
 
