@@ -1,0 +1,13 @@
+[
+  {
+    "assertion_urn": "urn:li:assertion:fct_user_orders_ltv_schema",
+    "entity_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,analytics.fct_user_orders,PROD)",
+    "assertion_type": "DATASET",
+    "status": "PASSED",
+    "description": "Schema assertion requiring non-null lifetime_value column on fct_user_orders",
+    "protected_fields": [
+      "lifetime_value"
+    ],
+    "violating_column": null
+  }
+]

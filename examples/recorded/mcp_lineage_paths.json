@@ -1,0 +1,3 @@
+[
+  "snowflake,analytics.fct_user_orders,PROD [DATASET] -> sagemaker,user_ltv_feature [MLFEATURE] -> sagemaker,churn_prediction_v2,PROD [MLMODEL]"
+]

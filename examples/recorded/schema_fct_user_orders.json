@@ -1,0 +1,6 @@
+{
+  "user_id": "INT",
+  "first_order_at": "TIMESTAMP",
+  "lifetime_value": "DECIMAL",
+  "total_orders": "INT"
+}

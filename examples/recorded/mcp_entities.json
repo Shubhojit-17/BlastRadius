@@ -1,0 +1,7 @@
+{
+  "analytics.fct_user_orders": "Derived dbt model for user lifetime value and order metrics",
+  "exec_revenue_dashboard": "High level executive BI dashboard for revenue and churn",
+  "user_revenue_chart": "Visualizes user lifetime value by cohort",
+  "user_churn_features": "SageMaker feature table for user churn model training",
+  "churn_prediction_v2": "Production XGBoost model predicting user churn risk"
+}

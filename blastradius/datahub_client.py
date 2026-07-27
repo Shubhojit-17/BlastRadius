@@ -347,14 +347,27 @@ class DataHubRestGraphClient(DataHubClient):
         return []
 
 
-class DataHubClientStub(DataHubClient):
-    """Stub implementation of DataHubClient interface used for offline unit testing."""
+class MockDataHubClient(DataHubClient):
+    """
+    Zero-setup Mock implementation of DataHubClient backed by recorded JSON fixtures
+    in examples/recorded/. Runs completely offline with zero infrastructure.
+    """
+
+    def __init__(self, fixtures_dir: Optional[str] = None):
+        import os
+        base_dir = os.path.dirname(__file__)
+        self.fixtures_dir = fixtures_dir or os.path.join(base_dir, "..", "examples", "recorded")
 
     def resolve_entity_urn(self, dataset_name: str, env: str = "PROD") -> Optional[str]:
-        return f"urn:li:dataset:(urn:li:dataPlatform:snowflake,{dataset_name},{env})"
+        return f"urn:li:dataset:(urn:li:dataPlatform:snowflake,analytics.{dataset_name},{env})"
 
     def fetch_dataset_schema(self, entity_urn: str) -> Dict[str, Any]:
-        return {"user_id": "INT", "lifetime_value": "DECIMAL"}
+        import os, json
+        schema_file = os.path.join(self.fixtures_dir, "schema_fct_user_orders.json")
+        if os.path.exists(schema_file):
+            with open(schema_file, "r") as f:
+                return json.load(f)
+        return {"user_id": "INT", "lifetime_value": "DECIMAL", "first_order_at": "TIMESTAMP"}
 
     def fetch_downstream_column_lineage(
         self,
@@ -362,6 +375,36 @@ class DataHubClientStub(DataHubClient):
         column_name: Optional[str] = None,
         max_depth: int = 5
     ) -> List[DownstreamAsset]:
+        import os, json
+        if column_name and column_name.lower() in ["lifetime_value", "order_amount"]:
+            file_path = os.path.join(self.fixtures_dir, "lineage_lifetime_value.json")
+        else:
+            file_path = os.path.join(self.fixtures_dir, "lineage_first_order_at.json")
+
+        if os.path.exists(file_path):
+            with open(file_path, "r") as f:
+                raw_assets = json.load(f)
+                return [
+                    DownstreamAsset(
+                        urn=item["urn"],
+                        name=item["name"],
+                        entity_type=item["entity_type"],
+                        depth=item["depth"],
+                        owners=item.get("owners", []),
+                        column_paths=[
+                            ColumnLineagePath(
+                                upstream_urn=cp["upstream_urn"],
+                                upstream_column=cp["upstream_column"],
+                                downstream_urn=cp["downstream_urn"],
+                                downstream_column=cp["downstream_column"],
+                            )
+                            for cp in item.get("column_paths", [])
+                        ]
+                    )
+                    for item in raw_assets
+                ]
+
+        # Fallback inline mock assets
         if column_name and column_name.lower() in ["lifetime_value", "order_amount"]:
             return [
                 DownstreamAsset(
@@ -396,4 +439,34 @@ class DataHubClientStub(DataHubClient):
         return []
 
     def fetch_entity_assertions(self, entity_urn: str) -> List[AssertionResult]:
-        return []
+        import os, json
+        file_path = os.path.join(self.fixtures_dir, "assertions_fct_user_orders.json")
+        if os.path.exists(file_path):
+            with open(file_path, "r") as f:
+                raw_assertions = json.load(f)
+                return [
+                    AssertionResult(
+                        assertion_urn=item["assertion_urn"],
+                        entity_urn=item["entity_urn"],
+                        assertion_type=item["assertion_type"],
+                        status=item["status"],
+                        description=item["description"],
+                        protected_fields=item.get("protected_fields", []),
+                        violating_column=item.get("violating_column"),
+                    )
+                    for item in raw_assertions
+                ]
+        return [
+            AssertionResult(
+                assertion_urn="urn:li:assertion:fct_user_orders_ltv_schema",
+                entity_urn=entity_urn,
+                assertion_type="DATASET",
+                status="PASSED",
+                description="Schema assertion requiring non-null lifetime_value column",
+                protected_fields=["lifetime_value"],
+            )
+        ]
+
+
+# Alias DataHubClientStub to MockDataHubClient for backward compatibility
+DataHubClientStub = MockDataHubClient

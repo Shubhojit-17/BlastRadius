@@ -286,3 +286,19 @@ def resolve_entities_to_urns(
         resolved_entities.append(entity)
 
     return resolved_entities
+
+
+def resolve_entities_from_sql_diff(
+    base_sql: str,
+    head_sql: str,
+    model_name: str = "fct_user_orders",
+    env: str = "PROD",
+    client: Optional[DataHubClient] = None
+) -> List[ChangedEntity]:
+    """
+    Convenience helper: parses base and head SQL file contents using SQLGlot,
+    detects AST column changes, and resolves URNs against DataHub.
+    """
+    unresolved = parse_pr_diff(file_contents={f"models/{model_name}.sql": (base_sql, head_sql)})
+    return resolve_entities_to_urns(unresolved, env=env, client=client)
+

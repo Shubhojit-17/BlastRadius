@@ -1,0 +1,70 @@
+[
+  {
+    "urn": "urn:li:chart:(looker,user_revenue_chart)",
+    "name": "user_revenue_chart",
+    "entity_type": "chart",
+    "depth": 1,
+    "owners": [
+      "urn:li:corpuser:bob@company.com"
+    ],
+    "column_paths": [
+      {
+        "upstream_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,analytics.fct_user_orders,PROD)",
+        "upstream_column": "lifetime_value",
+        "downstream_urn": "urn:li:chart:(looker,user_revenue_chart)",
+        "downstream_column": "lifetime_value"
+      }
+    ]
+  },
+  {
+    "urn": "urn:li:dashboard:(looker,exec_revenue_dashboard)",
+    "name": "exec_revenue_dashboard",
+    "entity_type": "dashboard",
+    "depth": 2,
+    "owners": [
+      "urn:li:corpuser:carol@company.com"
+    ],
+    "column_paths": [
+      {
+        "upstream_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,analytics.fct_user_orders,PROD)",
+        "upstream_column": "lifetime_value",
+        "downstream_urn": "urn:li:dashboard:(looker,exec_revenue_dashboard)",
+        "downstream_column": "lifetime_value"
+      }
+    ]
+  },
+  {
+    "urn": "urn:li:mlFeature:(sagemaker,user_ltv_feature)",
+    "name": "user_ltv_feature",
+    "entity_type": "mlfeature",
+    "depth": 1,
+    "owners": [
+      "urn:li:corpuser:dave@company.com"
+    ],
+    "column_paths": [
+      {
+        "upstream_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,analytics.fct_user_orders,PROD)",
+        "upstream_column": "lifetime_value",
+        "downstream_urn": "urn:li:mlFeature:(sagemaker,user_ltv_feature)",
+        "downstream_column": "user_ltv_feature"
+      }
+    ]
+  },
+  {
+    "urn": "urn:li:mlModel:(urn:li:dataPlatform:sagemaker,churn_prediction_v2,PROD)",
+    "name": "churn_prediction_v2",
+    "entity_type": "mlmodel",
+    "depth": 2,
+    "owners": [
+      "urn:li:corpuser:eve@company.com"
+    ],
+    "column_paths": [
+      {
+        "upstream_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,analytics.fct_user_orders,PROD)",
+        "upstream_column": "lifetime_value",
+        "downstream_urn": "urn:li:mlModel:(urn:li:dataPlatform:sagemaker,churn_prediction_v2,PROD)",
+        "downstream_column": "churn_prediction_v2"
+      }
+    ]
+  }
+]
