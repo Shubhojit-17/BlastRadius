@@ -192,22 +192,34 @@ def generate_pr_comment(
     # 6. MCP-Enriched Context
     markdown += "---\n\n"
     markdown += "### 🔍 DataHub MCP-Enriched Catalog Context\n"
-    markdown += f"*(Retrieved via DataHub MCP stdio tools: {', '.join(enriched_context.read_tools_with_data) if enriched_context.read_tools_with_data else 'Offline Mock Fixtures'})*\n\n"
 
-    if enriched_context.entity_descriptions:
-        markdown += "- **Catalog Descriptions (`get_entities`):**\n"
-        for name, desc in enriched_context.entity_descriptions.items():
-            if not name.startswith("urn:li:"):
+    if not all_assets:
+        col_str = ", ".join(changed_cols) if changed_cols else "specified column"
+        markdown += f"*No downstream assets are affected by this column change — column-level lineage confirms `{col_str}` has no dependents.*\n"
+    else:
+        markdown += f"*(Retrieved via DataHub MCP stdio tools: {', '.join(enriched_context.read_tools_with_data) if enriched_context.read_tools_with_data else 'Offline Mock Fixtures'})*\n\n"
+
+        affected_asset_names = {a.name for a in all_assets}
+        affected_asset_names.add(dataset_name)
+
+        filtered_descriptions = {
+            name: desc for name, desc in enriched_context.entity_descriptions.items()
+            if not name.startswith("urn:li:") and (name in affected_asset_names or any(an in name for an in affected_asset_names))
+        }
+
+        if filtered_descriptions:
+            markdown += "- **Catalog Descriptions (`get_entities`):**\n"
+            for name, desc in filtered_descriptions.items():
                 markdown += f"  - **`{name}`**: *\"{desc}\"*\n"
-    else:
-        markdown += "- **Catalog Descriptions:** No documentation found in catalog.\n"
+        else:
+            markdown += "- **Catalog Descriptions:** No documentation found in catalog.\n"
 
-    if enriched_context.parsed_lineage_traces:
-        markdown += "- **Explicit Lineage Path (`get_lineage_paths_between`):**\n"
-        for trace in enriched_context.parsed_lineage_traces:
-            markdown += f"  - `{trace}`\n"
-    else:
-        markdown += "- **Explicit Lineage Path:** Direct graph lineage.\n"
+        if enriched_context.parsed_lineage_traces:
+            markdown += "- **Explicit Lineage Path (`get_lineage_paths_between`):**\n"
+            for trace in enriched_context.parsed_lineage_traces:
+                markdown += f"  - `{trace}`\n"
+        else:
+            markdown += "- **Explicit Lineage Path:** Direct graph lineage.\n"
 
     changed_entities = [imp.target_entity for imp in impact_results]
 
