@@ -22,13 +22,17 @@ from blastradius.config import config
 logger = logging.getLogger("orchestrator")
 
 
+from blastradius.writeback import execute_writeback
+
 def run_pipeline(
     base_sql: str,
     head_sql: str,
     client: Optional[DataHubClient] = None,
     use_mock: bool = False,
     pr_number: int = 1,
-    commit_sha: str = "HEAD"
+    commit_sha: str = "HEAD",
+    write_back: bool = False,
+    dry_run: bool = False
 ) -> Tuple[AssessmentReport, int]:
     """
     Executes the full BlastRadius analysis pipeline.
@@ -40,6 +44,8 @@ def run_pipeline(
         use_mock: If True, uses MockDataHubClient and offline MCPAgent with recorded fixtures.
         pr_number: GitHub Pull Request number.
         commit_sha: Commit SHA under review.
+        write_back: If True, writes findings back into DataHub via MCP mutation tools.
+        dry_run: If True, logs planned write-back mutations without executing.
 
     Returns:
         Tuple of (AssessmentReport, exit_code), where exit_code is 1 if RiskLevel is HIGH, else 0.
@@ -96,6 +102,11 @@ def run_pipeline(
         pr_number=pr_number,
         commit_sha=commit_sha,
     )
+
+    # Step 6: Write-Back (Optional / Guarded)
+    if write_back or dry_run:
+        logger.info(f"Step 6: Write-Back - Executing metadata write-back (Write-back: {write_back}, Dry-run: {dry_run})...")
+        execute_writeback(report, client=dh_client, dry_run=dry_run, use_mock=use_mock)
 
     exit_code = 1 if report.risk_level == RiskLevel.HIGH else 0
     logger.info(f"Pipeline Execution Complete. Risk Level: {report.risk_level.value} (Score: {report.risk_score:.1f}, Exit Code: {exit_code})")
