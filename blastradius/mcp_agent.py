@@ -100,8 +100,17 @@ class MCPAgent:
                 elif isinstance(value, str):
                     t_urn = value if value.startswith("urn:li:tag:") else f"urn:li:tag:{value}"
                     adapted_args["tag_urns"] = [t_urn]
-            elif key == "properties" and "property_values" in properties:
-                adapted_args["property_values"] = value
+            elif key in ["properties", "property_values"] and "property_values" in properties:
+                if isinstance(value, dict):
+                    adapted_args["property_values"] = [
+                        {
+                            "property_urn": k if k.startswith("urn:li:structuredProperty:") else f"urn:li:structuredProperty:{k}",
+                            "values": v if isinstance(value, list) else [str(v)]
+                        }
+                        for k, v in value.items()
+                    ]
+                else:
+                    adapted_args["property_values"] = value
             else:
                 adapted_args[key] = value
 

@@ -26,13 +26,13 @@ from blastradius.config import config
 
 logger = logging.getLogger("writeback")
 
-SENTINEL_START = "<!-- BLASTRADIUS:START -->"
-SENTINEL_END = "<!-- BLASTRADIUS:END -->"
+SENTINEL_START = "[BLASTRADIUS:START]"
+SENTINEL_END = "[BLASTRADIUS:END]"
 TAG_NAME = "blastradius_pending_change"
 
 
 def format_sentinel_warning(report: AssessmentReport) -> str:
-    """Formats the warning markdown block wrapped in sentinel markers."""
+    """Formats the warning markdown block wrapped in visible sentinel markers."""
     target_entity = report.changed_entities[0] if report.changed_entities else None
     dataset_name = target_entity.dataset_name if target_entity else "dataset"
     cols = ", ".join([c.column_name for c in target_entity.column_changes]) if target_entity else "column"
@@ -53,30 +53,18 @@ def format_sentinel_warning(report: AssessmentReport) -> str:
     return warning
 
 
-HEADER_MARKER = "### ⚠️ BlastRadius Schema Impact Warning"
-
-
 def apply_read_modify_write_description(original_desc: str, warning_block: str) -> str:
     """
     Appends or updates sentinel warning block using re.DOTALL, preserving original description.
     """
     clean_original = original_desc.strip()
+    pattern = rf"\n\n{re.escape(SENTINEL_START)}.*?{re.escape(SENTINEL_END)}"
 
-    # Pattern 1: HTML comments sentinel block
-    pattern_html = rf"\n\n{re.escape(SENTINEL_START)}.*?{re.escape(SENTINEL_END)}"
-    # Pattern 2: Header marker fallback (if HTML comments are stripped by sanitizer)
-    pattern_header = rf"\n\n{re.escape(HEADER_MARKER)}.*"
-
-    if re.search(pattern_html, clean_original, flags=re.DOTALL):
-        return re.sub(pattern_html, f"\n\n{warning_block}", clean_original, flags=re.DOTALL)
-    elif re.search(pattern_header, clean_original, flags=re.DOTALL):
-        return re.sub(pattern_header, f"\n\n{warning_block}", clean_original, flags=re.DOTALL)
+    if re.search(pattern, clean_original, flags=re.DOTALL):
+        return re.sub(pattern, f"\n\n{warning_block}", clean_original, flags=re.DOTALL)
     elif SENTINEL_START in clean_original:
         pattern_alt = rf"{re.escape(SENTINEL_START)}.*?{re.escape(SENTINEL_END)}"
         return re.sub(pattern_alt, warning_block, clean_original, flags=re.DOTALL)
-    elif HEADER_MARKER in clean_original:
-        pattern_hdr_alt = rf"{re.escape(HEADER_MARKER)}.*"
-        return re.sub(pattern_hdr_alt, warning_block, clean_original, flags=re.DOTALL)
     else:
         if clean_original:
             return f"{clean_original}\n\n{warning_block}"
@@ -87,19 +75,12 @@ def strip_sentinel_warning(desc_with_warning: str) -> str:
     """
     Strips sentinel warning block and trailing whitespace, restoring exact original description.
     """
-    pattern_html = rf"\n\n{re.escape(SENTINEL_START)}.*?{re.escape(SENTINEL_END)}"
-    pattern_header = rf"\n\n{re.escape(HEADER_MARKER)}.*"
-
-    stripped = re.sub(pattern_html, "", desc_with_warning, flags=re.DOTALL)
-    stripped = re.sub(pattern_header, "", stripped, flags=re.DOTALL)
+    pattern = rf"\n\n{re.escape(SENTINEL_START)}.*?{re.escape(SENTINEL_END)}"
+    stripped = re.sub(pattern, "", desc_with_warning, flags=re.DOTALL)
 
     if SENTINEL_START in stripped:
         pattern_alt = rf"{re.escape(SENTINEL_START)}.*?{re.escape(SENTINEL_END)}"
         stripped = re.sub(pattern_alt, "", stripped, flags=re.DOTALL)
-
-    if HEADER_MARKER in stripped:
-        pattern_hdr_alt = rf"{re.escape(HEADER_MARKER)}.*"
-        stripped = re.sub(pattern_hdr_alt, "", stripped, flags=re.DOTALL)
 
     return stripped.strip()
 

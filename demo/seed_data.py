@@ -333,6 +333,35 @@ def emit_metadata(emitter: DataHubRestEmitter) -> None:
     )
     mcps.append(tag_mcp)
 
+    # 7. Emit Structured Property Definitions
+    sp_risk_mcp = MetadataChangeProposalWrapper(
+        entityType="structuredProperty",
+        entityUrn="urn:li:structuredProperty:blastradius_risk_level",
+        changeType=ChangeTypeClass.UPSERT,
+        aspectName="propertyDefinition",
+        aspect=StructuredPropertyDefinitionClass(
+            qualifiedName="blastradius.risk_level",
+            displayName="BlastRadius Risk Level",
+            valueType="urn:li:dataType:datahub.string",
+            entityTypes=["urn:li:entityType:datahub.dataset"]
+        ),
+    )
+    mcps.append(sp_risk_mcp)
+
+    sp_pr_mcp = MetadataChangeProposalWrapper(
+        entityType="structuredProperty",
+        entityUrn="urn:li:structuredProperty:blastradius_pr",
+        changeType=ChangeTypeClass.UPSERT,
+        aspectName="propertyDefinition",
+        aspect=StructuredPropertyDefinitionClass(
+            qualifiedName="blastradius.pr",
+            displayName="BlastRadius PR Number",
+            valueType="urn:li:dataType:datahub.string",
+            entityTypes=["urn:li:entityType:datahub.dataset"]
+        ),
+    )
+    mcps.append(sp_pr_mcp)
+
     print(f"Emitting {len(mcps)} metadata change proposals to DataHub GMS at {config.datahub_gms_url}...")
     for mcp in mcps:
         emitter.emit(mcp)
