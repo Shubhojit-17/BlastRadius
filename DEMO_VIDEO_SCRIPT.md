@@ -51,7 +51,7 @@ python -c "from blastradius.orchestrator import run_pipeline; from blastradius.w
   - Navigate to dataset `analytics.fct_user_orders`.
   - Click on **Lineage** tab, toggle **Column-Level Lineage ON**, and click on column **`lifetime_value`**.
   - Show the path tracing to Looker chart `user_revenue_chart`, Looker dashboard `exec_revenue_dashboard`, SageMaker feature `user_ltv_feature`, and SageMaker ML model `churn_prediction_v2`.
-  - Click on **Quality / Assertions** tab to show active schema contract `fct_user_orders_ltv_schema`.
+  - Click on **Quality ➔ Assertions** tab (or **Data Contract** tab) to show the active contract assertion protecting column `lifetime_value` (`Column lifetime_value values are not null`).
 - **Voiceover**:
   > *"Here in DataHub Core, we have a dataset called `fct_user_orders`. Using DataHub's column-level lineage, we see that `lifetime_value` feeds a Looker revenue dashboard AND a production XGBoost churn prediction model. Furthermore, DataHub has an active data contract assertion protecting this schema."*
 
