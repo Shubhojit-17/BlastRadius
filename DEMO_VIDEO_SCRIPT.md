@@ -21,10 +21,10 @@ python -m blastradius.demo
 ```
 
 ### 3. Live PR Assessment + Two-Way Write-Back Command
-Executes live against DataHub GMS (`http://localhost:8080`), evaluates column drop on `lifetime_value`, and writes findings back into DataHub:
+Executes live against DataHub GMS (`http://localhost:8080`), evaluates column drop on `lifetime_value`, prints the markdown PR comment, and writes findings back into DataHub:
 
 ```cmd
-python -c "from blastradius.orchestrator import run_pipeline; run_pipeline('SELECT user_id, first_order_at, lifetime_value FROM analytics.fct_user_orders;', 'SELECT user_id, first_order_at FROM analytics.fct_user_orders;', use_mock=False, write_back=True, pr_number=101)"
+set PYTHONIOENCODING=utf-8 && python -c "from blastradius.orchestrator import run_pipeline; report, _ = run_pipeline('SELECT user_id, first_order_at, lifetime_value FROM analytics.fct_user_orders;', 'SELECT user_id, first_order_at FROM analytics.fct_user_orders;', use_mock=False, write_back=True, pr_number=101); print(report.summary_markdown)"
 ```
 
 ### 4. Live Reversible Graph Cleanup Command
@@ -64,7 +64,7 @@ python -c "from blastradius.orchestrator import run_pipeline; from blastradius.w
   - Traces downstream column lineage, checks active contract assertions, calculates transparent risk score, enriches via stdio MCP tools, and triggers live catalog write-back (`write_back=True`).
 - **Screen Action**: Switch to Terminal and run Command 3:
   ```cmd
-  python -c "from blastradius.orchestrator import run_pipeline; run_pipeline('SELECT user_id, first_order_at, lifetime_value FROM analytics.fct_user_orders;', 'SELECT user_id, first_order_at FROM analytics.fct_user_orders;', use_mock=False, write_back=True, pr_number=101)"
+  set PYTHONIOENCODING=utf-8 && python -c "from blastradius.orchestrator import run_pipeline; report, _ = run_pipeline('SELECT user_id, first_order_at, lifetime_value FROM analytics.fct_user_orders;', 'SELECT user_id, first_order_at FROM analytics.fct_user_orders;', use_mock=False, write_back=True, pr_number=101); print(report.summary_markdown)"
   ```
   Highlight the terminal output showing:
   - SQLGlot AST detecting `COLUMN_DROP` on `lifetime_value`
