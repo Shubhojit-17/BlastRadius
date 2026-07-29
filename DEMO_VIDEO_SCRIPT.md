@@ -58,17 +58,21 @@ python -c "from blastradius.orchestrator import run_pipeline; from blastradius.w
 ---
 
 ### Scene 3: BlastRadius PR Evaluation & Auditable Scoring (1:10 – 1:55)
-- **Screen Action**: Switch to Terminal and run:
+- **What this command is doing**:
+  - Simulates a GitHub Pull Request (PR #101) where a developer removes `lifetime_value` from the `analytics.fct_user_orders` SQL query.
+  - Connects **100% LIVE** to DataHub GMS (`use_mock=False`).
+  - Traces downstream column lineage, checks active contract assertions, calculates transparent risk score, enriches via stdio MCP tools, and triggers live catalog write-back (`write_back=True`).
+- **Screen Action**: Switch to Terminal and run Command 3:
   ```cmd
   python -c "from blastradius.orchestrator import run_pipeline; run_pipeline('SELECT user_id, first_order_at, lifetime_value FROM analytics.fct_user_orders;', 'SELECT user_id, first_order_at FROM analytics.fct_user_orders;', use_mock=False, write_back=True, pr_number=101)"
   ```
   Highlight the terminal output showing:
   - SQLGlot AST detecting `COLUMN_DROP` on `lifetime_value`
-  - Contract assertion `fct_user_orders_ltv_schema` status: `VIOLATED`
+  - Data contract assertion status: `VIOLATED`
   - Score: `100.0/100.0` (`HIGH RISK`) with hard override rationale.
-  - Formatted PR comment markdown with 4 affected owners listed.
+  - Formatted PR comment markdown with 4 cross-team owners listed.
 - **Voiceover**:
-  > *"Now a developer opens a PR dropping `lifetime_value`. BlastRadius parses the AST diff using SQLGlot, traces column lineage in DataHub, and checks active contracts. It flags the broken data contract, computes an auditable point score of 100/100, assigns a HIGH RISK verdict, and lists the 4 cross-team owners required to approve the PR."*
+  > *"Now a developer opens Pull Request #101 removing the `lifetime_value` column from `fct_user_orders`. We execute BlastRadius live against DataHub. BlastRadius parses the SQL AST diff using SQLGlot, traces column-level lineage in DataHub, and checks active assertions. It catches the broken data contract, computes an auditable point score of 100/100, assigns a HIGH RISK verdict, lists the 4 cross-team owners required to approve the PR, and triggers two-way catalog write-back via DataHub MCP tools."*
 
 ---
 
