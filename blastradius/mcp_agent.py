@@ -64,6 +64,15 @@ class MCPAgent:
                 uvx_path = "uvx"
         return uvx_path
 
+    def get_server_params(self, env: Dict[str, str]) -> StdioServerParameters:
+        """Returns StdioServerParameters for launching mcp-server-datahub offline with telemetry disabled."""
+        from mcp import StdioServerParameters
+        uvx_cmd = self._resolve_uvx_path()
+        env_copy = dict(env)
+        env_copy["DATAHUB_TELEMETRY_ENABLED"] = "false"
+        env_copy["DATAHUB_DISABLE_TELEMETRY"] = "true"
+        return StdioServerParameters(command=uvx_cmd, args=["--offline", "mcp-server-datahub@latest"], env=env_copy)
+
     async def _call_tool_dynamic(
         self,
         session: ClientSession,
@@ -102,13 +111,10 @@ class MCPAgent:
                     adapted_args["tag_urns"] = [t_urn]
             elif key in ["properties", "property_values"] and "property_values" in properties:
                 if isinstance(value, dict):
-                    adapted_args["property_values"] = [
-                        {
-                            "property_urn": k if k.startswith("urn:li:structuredProperty:") else f"urn:li:structuredProperty:{k}",
-                            "values": v if isinstance(value, list) else [str(v)]
-                        }
+                    adapted_args["property_values"] = {
+                        (k if k.startswith("urn:li:structuredProperty:") else f"urn:li:structuredProperty:{k}"): (v if isinstance(v, list) else [str(v)])
                         for k, v in value.items()
-                    ]
+                    }
                 else:
                     adapted_args["property_values"] = value
             else:

@@ -1,41 +1,113 @@
 # BlastRadius 💥⚡
 
-An AI agent + GitHub Action that reviews Pull Requests touching data code (SQL, dbt models, schema migrations). It leverages DataHub's metadata graph to compute the column-aware downstream "blast radius" of changes — identifying affected dashboards, ML features, models, and owners, checking DataHub data contracts and assertions, posting risk verdicts on PRs, and writing assessment metadata back to DataHub.
+> **The DataHub Agent & GitHub Action that Guards Your Data Stack from Breaking Schema Changes.**
+
+BlastRadius is an AI agent, GitHub Action, and installable DataHub Agent Skill that reviews Pull Requests touching data code (SQL, dbt models, schema migrations). It leverages DataHub's metadata context graph to compute the **column-aware downstream "blast radius"** of changes — identifying affected dashboards, ML features, production ML models, and registered owners, checking DataHub data contracts, posting auditable risk verdicts on PRs, and performing two-way metadata write-back to DataHub.
+
+Built for **[The Agent Hackathon](https://datahub.devpost.com)** hosted by DataHub.
 
 ---
 
-## ⚡ Zero-Setup Offline Demo (Zero Infrastructure Required)
+## 🏗️ Architecture & How It Works
 
-You can run the full BlastRadius pipeline end-to-end with **zero setup, zero Docker, zero DataHub Core, and zero API keys**:
+```
+┌────────────────────────┐      ┌─────────────────────────┐      ┌─────────────────────────┐
+│ Git PR Diff (SQL/dbt)  │ ───> │ SQLGlot AST Resolver    │ ───> │ DataHub Lineage Graph   │
+└────────────────────────┘      └─────────────────────────┘      └─────────────────────────┘
+                                                                              │
+                                                                              ▼
+┌────────────────────────┐      ┌─────────────────────────┐      ┌─────────────────────────┐
+│ PR Comment & Verdict   │ <─── │ Transparent Risk Scoring│ <─── │ Data Contract Evaluator │
+└────────────────────────┘      └─────────────────────────┘      └─────────────────────────┘
+            │
+            ▼ (Opt-In Write-Back via stdio mcp-server-datahub)
+┌──────────────────────────────────────────────────────────────────────────────────────────┐
+│ DataHub Catalog Write-Back: Tag Assets + Plain-Text Sentinel Warning + Structured Props   │
+└──────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+1. **SQL AST Resolver**: Parses PR SQL files using SQLGlot to extract exact column-level modifications (`COLUMN_DROP`, `RENAME`, `TYPE_CHANGE`).
+2. **Column-Level Lineage Graph**: Queries DataHub GMS to trace downstream dependencies specifically affected by changed columns (Looker charts/dashboards, SageMaker ML features, SageMaker ML models).
+3. **Data Contract & Assertion Guard**: Evaluates whether PR column modifications violate active DataHub schema assertions or data contracts.
+4. **DataHub MCP Agent Layer**: Connects over stdio to `mcp-server-datahub` to enrich risk narratives with live catalog documentation and explicit transformation paths.
+5. **Auditable Point Rubric & Reporter**: Calculates transparent risk scores and generates formatted Markdown PR comments with required owner callouts.
+6. **Two-Way Catalog Write-Back**: Annotates affected downstream assets with `blastradius_pending_change` tags, updates target dataset documentation using plain-text sentinel markers (`[BLASTRADIUS:START]`), and attaches structured property metadata.
+7. **Reversible Graph Cleanup**: Provides a `cleanup_writeback` execution path to restore DataHub metadata byte-for-byte between PR evaluations.
+
+---
+
+## 🔌 DataHub Connection Ports Guide
+
+- **Port 9002 (`http://localhost:9002`)**: **DataHub Frontend Web UI**
+  - Use this in your browser to view datasets, column lineage graphs, active data contracts, tags, and catalog documentation.
+- **Port 8080 (`http://localhost:8080`)**: **DataHub GMS (General Metadata Service) API**
+  - Used programmatically by BlastRadius, the DataHub Python SDK, GraphQL API, and stdio MCP server (`mcp-server-datahub`) to query metadata and emit metadata proposals.
+
+---
+
+## ⚡ Zero-Setup Offline Demo (No Infrastructure Required)
+
+You can run the complete BlastRadius pipeline end-to-end with **zero setup, zero Docker, zero DataHub Core, and zero API keys**:
 
 ```bash
 python -m blastradius.demo
 ```
 
-This demo uses `MockDataHubClient` and offline recorded fixtures under `examples/recorded/` to execute the complete Resolver ➔ Analyzer ➔ Contracts ➔ MCP Agent ➔ Reporter pipeline and output the formatted PR comment with an exit code of `1` (HIGH RISK).
+This demo uses `MockDataHubClient` and recorded fixtures under `examples/recorded/` to execute the full Resolver ➔ Analyzer ➔ Contracts ➔ MCP Agent ➔ Reporter pipeline and output the formatted PR comment with an exit code of `1` (HIGH RISK).
 
 ---
 
-## 🚀 Live DataHub & GitHub Action Deployment Note
+## 🚀 Live DataHub Execution & Hackathon Verification
 
-- **GitHub Action Workflow**: Defined in `.github/workflows/blastradius.yml`.
-- **Runner Requirement**: Standard GitHub-hosted cloud runners (`runs-on: ubuntu-latest`) cannot connect to a DataHub instance hosted locally on `http://localhost:8080`.
-- **Deployment Options**:
-  - For local live PR evaluation, use a **self-hosted GitHub Action runner** running on your local machine alongside DataHub Core.
-  - Or configure `DATAHUB_GMS_URL` secret to point to a publicly reachable DataHub GMS endpoint or ngrok tunnel URL.
+To run the master live verification suite against your local DataHub instance (`http://localhost:8080`):
 
----
+```bash
+# 1. Seed demo graph into local DataHub Core
+python demo/seed_data.py
 
-## Features
+# 2. Run master live E2E verification (Scenario A, Scenario B, Write-Back, Idempotency, Cleanup)
+python scripts/verify_live_e2e_hackathon.py
+```
 
-- **SQL & dbt Parser**: Parses PR SQL files using SQLGlot to extract modified tables, views, and columns.
-- **Column-Aware Lineage Graph**: Fetches downstream impacts (charts, dashboards, ML features, ML models) specifically affected by changed columns.
-- **Data Contract & Assertion Guard**: Evaluates whether PR column changes violate active DataHub data contracts or schema assertions.
-- **MCP-Powered Agent Layer**: Connects via stdio to `mcp-server-datahub` to enrich risk narratives with live catalog documentation and transformation paths.
-- **Automated PR Reporter**: Generates auditable risk scores, explicit point breakdowns, and Markdown PR comments with owner action callouts.
+### Why `--offline` is Used for `uvx`
+When spawning `mcp-server-datahub` via `uvx`, the `--offline` flag instructs `uv` to launch the **locally cached, pre-installed Python package** on your machine rather than making PyPI network checks. The MCP server itself connects **100% LIVE** to your local DataHub instance (`http://localhost:8080`).
 
 ---
 
-## License
+## 🤖 Packaging as a DataHub Agent Skill
+
+BlastRadius is packaged as an installable DataHub Agent Skill under `skills/blastradius-guardian/`:
+
+```
+skills/blastradius-guardian/
+├── SKILL.md                          # Core 5-step imperative workflow instructions
+└── references/
+    ├── risk_rubric.md                # Transparent point scoring rubric reference
+    └── mcp_mutation_cheatsheet.md    # DataHub MCP mutation tool argument shapes
+```
+
+### Installation
+You can add this skill to your agent environment using the Skills CLI:
+
+```bash
+npx skills add skills/blastradius-guardian
+```
+
+Compatible with Gemini CLI, Claude Code, Cursor, Copilot, Windsurf, and other Agent Skills runners.
+
+---
+
+## 📁 Repository Structure
+
+- `blastradius/` - Core Python engine (Resolver, Analyzer, Contracts, MCP Agent, Reporter, Writeback, Orchestrator).
+- `skills/blastradius-guardian/` - DataHub Agent Skill definition & reference guides.
+- `demo/` - Reproducible DataHub graph seeding and teardown scripts.
+- `.github/workflows/` - GitHub Action workflow definition (`blastradius.yml`).
+- `examples/` - Sample PR comment outputs, assessment payloads, and SQL diff fixtures.
+- `scripts/` - Automated test and verification scripts.
+
+---
+
+## 📄 License
 
 This project is open source under the terms of the [Apache 2.0 License](LICENSE).

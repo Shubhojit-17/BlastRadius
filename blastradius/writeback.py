@@ -156,10 +156,10 @@ def execute_writeback(
         "target_urn": target_urn,
         "args": {
             "entity_urns": [target_urn],
-            "property_values": [
-                {"property_urn": "urn:li:structuredProperty:blastradius_risk_level", "values": [report.risk_level.value]},
-                {"property_urn": "urn:li:structuredProperty:blastradius_pr", "values": [f"#{report.pr_number}"]}
-            ]
+            "property_values": {
+                "urn:li:structuredProperty:blastradius_risk_level": [report.risk_level.value],
+                "urn:li:structuredProperty:blastradius_pr": [f"#{report.pr_number}"]
+            }
         }
     })
 
@@ -181,15 +181,14 @@ def execute_writeback(
 
     async def run_live_mutations():
         # Spawn stdio server and execute mutation tools
-        from mcp import ClientSession, StdioServerParameters
+        from mcp import ClientSession
         from mcp.client.stdio import stdio_client
-        uvx_cmd = mcp_agent._resolve_uvx_path()
         env = dict(os.environ)
         env["DATAHUB_GMS_URL"] = config.datahub_gms_url
         env["TOOLS_IS_MUTATION_ENABLED"] = "true"
         env.pop("DATAHUB_GMS_TOKEN", None)
 
-        server_params = StdioServerParameters(command=uvx_cmd, args=["mcp-server-datahub@latest"], env=env)
+        server_params = mcp_agent.get_server_params(env)
 
         results = []
         async with stdio_client(server_params) as (read, write):
@@ -260,14 +259,13 @@ def cleanup_writeback(
     mcp_agent = MCPAgent(gms_url=config.datahub_gms_url)
 
     async def run_cleanup():
-        from mcp import ClientSession, StdioServerParameters
+        from mcp import ClientSession
         from mcp.client.stdio import stdio_client
-        uvx_cmd = mcp_agent._resolve_uvx_path()
         env = dict(os.environ)
         env["DATAHUB_GMS_URL"] = config.datahub_gms_url
         env["TOOLS_IS_MUTATION_ENABLED"] = "true"
 
-        server_params = StdioServerParameters(command=uvx_cmd, args=["mcp-server-datahub@latest"], env=env)
+        server_params = mcp_agent.get_server_params(env)
 
         cleanup_results = []
         async with stdio_client(server_params) as (read, write):

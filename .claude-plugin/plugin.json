@@ -1,0 +1,10 @@
+{
+  "name": "blastradius-guardian",
+  "version": "1.0.0",
+  "description": "DataHub Agent Skill that evaluates pull requests modifying SQL/dbt models for downstream column-level blast radius, data contract violations, owner warnings, and DataHub catalog write-back.",
+  "author": "Shubhojit",
+  "license": "Apache-2.0",
+  "skills": [
+    "skills/blastradius-guardian/SKILL.md"
+  ]
+}
