@@ -48,6 +48,10 @@ from datahub.metadata.schema_classes import (
     DatasetAssertionInfoClass,
     DatasetAssertionScopeClass,
     AssertionStdOperatorClass,
+    ChangeTypeClass,
+    TagPropertiesClass,
+    StructuredPropertyDefinitionClass,
+    PropertyCardinalityClass,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -362,7 +366,7 @@ def emit_metadata(emitter: DataHubRestEmitter) -> None:
     )
     mcps.append(sp_pr_mcp)
 
-    print(f"Emitting {len(mcps)} metadata change proposals to DataHub GMS at {config.datahub_gms_url}...")
+    print(f"Emitting {len(mcps)} metadata change proposals to DataHub GMS at {GMS_ENDPOINT}...")
     for mcp in mcps:
         emitter.emit(mcp)
 
